@@ -1,0 +1,70 @@
+app:
+  name: agentiq-be-prod
+  namespace: agentiq-prod
+
+image:
+  repository: agentiq-be-prod
+  tag: latest
+  pullPolicy: Always
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+ingress:
+  enabled: true
+  hosts:
+    - host: agentiq.prismberry.com
+      paths:
+        - path: /api
+          pathType: Prefix
+
+  certificateArn: arn:aws:acm:ap-south-1:371284422618:certificate/49fb76eb-b2a8-4f5f-a72b-a5df98af6c88
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/group.name: prismberry-shared-alb
+    alb.ingress.kubernetes.io/group.order: "10"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: "/docs"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:371284422618:certificate/49fb76eb-b2a8-4f5f-a72b-a5df98af6c88
+    alb.ingress.kubernetes.io/subnets: subnet-ef58e8a3,subnet-b6fdbede,subnet-7b8a4900
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300
+
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "100m"
+  limits:
+    memory: "2Gi"
+    cpu: "1000m"
+
+healthCheck:
+  path: /docs
+  initialDelaySeconds: 60
+  periodSeconds: 15
+  failureThreshold: 3
+
+persistence:
+  enabled: false
+
+externalSecret:
+  enabled: true
+  secretManagerKey: /agentiq/be/prod
+
+env: {}
+
+keda:
+  enabled: false
+
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 4
+  cpuUtilization: 80
+  memoryUtilization: 80

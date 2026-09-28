@@ -1,0 +1,39 @@
+version: 0.2
+env:
+  variables:
+    AWS_REGION: ap-south-1
+    ECR_REGISTRY: 371284422618.dkr.ecr.ap-south-1.amazonaws.com
+    ECR_REPOSITORY: agentiq-be-prod
+    K8S_NAMESPACE: agentiq-prod
+    CLUSTER_NAME: prismberry-eks
+    HELM_RELEASE: agentiq-be-prod
+    BASE_IMAGE: 371284422618.dkr.ecr.ap-south-1.amazonaws.com/ecr/python:3.12-slim
+  secrets-manager:
+    GITHUB_TOKEN: /github/token
+
+phases:
+  install:
+    commands:
+      - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      - chmod +x kubectl && mv kubectl /usr/local/bin/
+      - curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
+      - IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      - git clone https://$GITHUB_TOKEN@github.com/eYantra-Ventures-Limited/infra-helm-charts.git infra-helm-charts
+
+  build:
+    commands:
+      - docker build --build-arg BASE_IMAGE=$BASE_IMAGE -t $IMAGE_URI .
+      - docker tag $IMAGE_URI $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      
+  post_build:
+    commands:
+      - docker push $IMAGE_URI
+      - docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      - aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME --role-arn arn:aws:iam::371284422618:role/CodeBuildEKSRole
+      - helm upgrade --install $HELM_RELEASE ./infra-helm-charts/eks-app-chart -f deploy/values.yaml --set image.tag=$IMAGE_TAG -n $K8S_NAMESPACE --create-namespace --wait --timeout 5m
+ 

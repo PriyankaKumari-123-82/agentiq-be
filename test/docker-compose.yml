@@ -1,0 +1,20 @@
+services:
+  test_db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: agentiq_test_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - test_db_data:/var/lib/postgresql/data/
+      - ./init_test_db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  test_db_data:

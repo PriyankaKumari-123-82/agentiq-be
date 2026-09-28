@@ -1,0 +1,36 @@
+version: 0.0
+os: linux
+files:
+  - source: / 
+    destination: /home/ubuntu/ai_agent/pb-ai-agent
+    overwrite: true 
+
+permissions:
+  - object: /home/ubuntu/ai_agent/pb-ai-agent
+    pattern: "**"
+    owner: ubuntu
+    group: ubuntu
+    type:
+      - directory
+      - file
+hooks:
+  BeforeInstall:
+    - location: scripts/deploy_before_install.sh 
+      timeout: 300
+      runas: ubuntu
+
+    - location: scripts/install_docker_compose.sh
+      timeout: 300
+      runas: ubuntu
+  AfterInstall:
+    - location: scripts/run_docker_compose.sh
+      timeout: 600
+      runas: ubuntu
+  ApplicationStop:
+    - location: scripts/stop_docker_compose.sh
+      timeout: 300
+      runas: ubuntu
+  ApplicationStart:
+    - location: scripts/start_docker_compose.sh
+      timeout: 300
+      runas: ubuntu
